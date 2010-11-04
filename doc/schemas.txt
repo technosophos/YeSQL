@@ -1,0 +1,13 @@
+# Schemas that could be used for NoSQL
+
+From [FriendFeed's Schema](http://bret.appspot.com/entry/how-friendfeed-uses-mysql):
+
+>    CREATE TABLE entities (
+        added_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        id BINARY(16) NOT NULL,
+        updated TIMESTAMP NOT NULL,
+        body MEDIUMBLOB,
+        UNIQUE KEY (id),
+        KEY (updated)
+    ) ENGINE=InnoDB;
+
