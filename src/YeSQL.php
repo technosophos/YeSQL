@@ -51,9 +51,11 @@ class YeSQL {
     
     switch ($dbType) {
       case 'sqlite':
-        $res = $db->query('SELECT LOWER(HEX(RANDOMBLOG(16)))');
+        $res = $db->query('SELECT LOWER(HEX(RANDOMBLOG(16))) AS uuid');
         $row = $res->fetch(PDO::FETCH_ASSOC);
-        return 
+        $uuid = $row['uuid'];
+        $res->closeCursor();
+        return $uuid;
       case 'mysql':
         // SELECT UUID()
       default:
