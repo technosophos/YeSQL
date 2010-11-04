@@ -439,7 +439,7 @@ Edit project.properties (or build.xml) to set the above.
           <token key="UNSTABLE" value="${version}"/>
           <token key="PROJECT" value="${project.name}"/>
           <token key="SUMMARY" value="${project.summary}"/>
-          <token key="DESCRIPTION" value="${project.description}"
+          <token key="DESCRIPTION" value="${project.description}"/>
         </replacetokens>
       </filterchain>
     </reflexive>
