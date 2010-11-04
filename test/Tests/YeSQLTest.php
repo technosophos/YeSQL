@@ -9,8 +9,23 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $this->pdo = new PDO($dsn);
   }
   
+  public function tearDown() {
+    // TODO: Unlink the DB.
+  }
+  
   public function testConstructor() {
     
   }
   
+  public function testSchema() {
+    
+  }
+  
+  public function testSave() {
+    
+  }
+  
+  public function testFind() {
+    
+  }
 }
