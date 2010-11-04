@@ -327,7 +327,7 @@ Edit project.properties (or build.xml) to set the above.
   tweaking, you can use the distributed package as a PEAR package.
   -->
   <target name="fullBuild" description="Full ${project.name} build, including docs."
-    depends="setup,prebuild,setPearStability">
+    depends="setup,prebuild">
     <property name="releasedir" value="${builddir}/${project.name}-${version}" override="true"/>
     <delete dir="${releasedir}" />
     
@@ -525,7 +525,7 @@ Edit project.properties (or build.xml) to set the above.
   </target>
   
   <!-- TARGET
-  Run a full test and format an HTML report.
+  Run a x test and format an HTML report.
   
   This differs from tmtest in that the output for this report is more robust, designed for
   detailed viewing, not viewing quickly in a pop-up window.
