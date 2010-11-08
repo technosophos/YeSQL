@@ -11,3 +11,4 @@ From [FriendFeed's Schema](http://bret.appspot.com/entry/how-friendfeed-uses-mys
         KEY (updated)
     ) ENGINE=InnoDB;
 
+SQLite does not have rigid data types, and performs implicit type casting with some frequency. For this reason, working with it will be substantially different from other platforms.

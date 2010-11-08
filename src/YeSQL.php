@@ -28,12 +28,52 @@ class YeSQL {
    * Save a record.
    */
   public function save(array $record) {
-    if ($record['id']) {
+    if (!empty($record['id'])) {
       // We have an existing object
     }
     else {
+      $time = $_SERVER['REQUEST_TIME']
+      
+      $uid = $this->generateID();
+      
+      $insert_entities = $this->db->prepare('INSERT INTO entities 
+        (id, updated, body) 
+        VALUES (:uid, DATETIME("now"), :body)');
+        
+      $insert_attributes = $this->db->prepare('INSERT INTO attributes
+        id, akey, avalue, ahash
+        VALUES (:uid, :key, :value, :crc)');
+      
       // We need to get an ID.
       //$this->db->exec();
+      $attributes = $this->prepareIndexes($record);
+      
+      // Begin transaction
+      $this->db->beginTransaction();
+      
+      // Insert main value
+      if (!$insert_entities->execute(array(':uid' => $uid, ':body' => serialize($record)))) {
+        $this->db->rollbackTransaction();
+        throw new YeSQLException('Failed to store primary object.')
+      };
+      
+      // Insert all referencing index values
+      foreach ($attributes as $key => $value) {
+        $params = array(
+          ':uid' => $uid,
+          ':key' => $key,
+          ':value' => $value,
+          ':crc' => crc32($key),
+        );
+        if (!$insert_attributes->execute($params)) {
+          $this->db->rollbackTransaction();
+          throw new YeSQLException('Failed to store index for ' . $key);
+        }
+      }
+      
+      
+      // End transaction
+      $this->db->commitTransaction;
     }
 
   }
@@ -46,41 +86,59 @@ class YeSQL {
   }
 
   public function generateID() {
-    
     $res = $db->query('SELECT LOWER(HEX(RANDOMBLOB(16))) AS uuid');
     $row = $res->fetch(PDO::FETCH_ASSOC);
     $uuid = $row['uuid'];
     $res->closeCursor();
     return $uuid;
-    
-    // uh... UUID generator, anyone?
-    $dbType = 'sqlite';
-    
-    switch ($dbType) {
-      case 'sqlite':
-        
-      case 'mysql':
-        // SELECT UUID()
-      default:
-        // From drupal.org/project/uuid
-        return sprintf('%04x%04x-%04x-%03x4-%04x-%04x%04x%04x',
-          // 32 bits for "time_low".
-          mt_rand(0, 65535), mt_rand(0, 65535),
-          // 16 bits for "time_mid".
-          mt_rand(0, 65535),
-          // 12 bits before the 0100 of (version) 4 for "time_hi_and_version".
-          mt_rand(0, 4095),
-          bindec(substr_replace(sprintf('%016b', mt_rand(0, 65535)), '01', 6, 2)),
-          // 8 bits, the last two of which (positions 6 and 7) are 01, for "clk_seq_hi_res"
-          // (hence, the 2nd hex digit after the 3rd hyphen can only be 1, 5, 9 or d)
-          // 8 bits for "clk_seq_low" 48 bits for "node".
-          mt_rand(0, 65535), mt_rand(0, 65535), mt_rand(0, 65535)
-        );
-    }
-    
   }
   
-
+  /**
+   * Transform an n-depth array of data into a list of key/value pairs.
+   *
+   * Limitations:
+   * - If an array has $array[0] set, we assume it is an indexed (non-assoc) array.
+   * - If a value given is an object, we try to cast to an array. This will obviously not work with
+   *   some objects. Then again, it's not the intent of this library to be able to store any old 
+   *  thing, either.
+   * - Strict checking is not done on non-array values. This may result in insert/update errors if
+   *   you dump a resource in here.
+   * - associative arrays will have recursive keys build. Indexed arrays will not.
+   *
+   * @param array $data
+   *  An array of primitive data (arrays, scalars).
+   * @return array
+   *  An associative array of keys and values.
+   */
+  protected function prepareIndexes(array $data, $prefix = '', &$buffer = array()) {
+    foreach ($data as $k => $v) {
+      // Cast objects into arrays. This will not always work... nor should it.
+      if (is_object($v)) {
+        $v = (array)$v;
+      }
+      
+      if (is_array($v) && !empty($v) && !isset($v[0])) {
+        // Don't index empty arrays.
+        if (empty($v)) {
+          continue;
+        }
+        // Indexed arrays are stored as sets of k/v pairs.
+        //elseif(isset($v[0])) {
+        //  throw new Exception('NOT IMPLEMENTED');
+        //}
+        // Else we store special dot-suffixed keys.
+        else {
+          // Recurse.
+          $this->prepareIndexes($v, $k . '.', $buffer);
+        }
+      }
+      else {
+        $buffer[$prefix . $k] = $v;
+      }
+      
+    }
+    return $buffer;
+  }
   
   /**
    * Emit the schema.
@@ -103,12 +161,14 @@ class YeSQL {
 .
 // Very generic index:
 'CREATE TABLE attributes (
-  id TEXT NOT NULL,
+  id TEXT REFERENCES entities (id),
   akey TEXT NOT NULL,
   avalue TEXT,
   ahash TEXT
+  -- FOREIGN KEY id REFERENCES entities (id)
   -- KEY (akey, avalue),
   -- KEY (akey, ahash),
 );';
   }
 }
+class YeSQLException extends Exception {}

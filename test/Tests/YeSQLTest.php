@@ -10,6 +10,10 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $this->pdo = new PDO($dsn);
     
     $this->pdo->exec(YeSQL::schema());
+    $err = $this->pdo->errorInfo();
+    if ($err[1] > 0) {
+      throw new Exception('Schema Failed:' . print_r($err, TRUE));
+    }
     
    // throw new Exception('Schema Failed: ' . print_r($this->pdo->errorInfo(), TRUE));
   }
