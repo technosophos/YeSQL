@@ -33,7 +33,7 @@ class YeSQL {
     }
     else {
       // We need to get an ID.
-      $this->db->exec()
+      //$this->db->exec();
     }
 
   }
@@ -45,17 +45,20 @@ class YeSQL {
     
   }
 
-  protected function generateID() {
+  public function generateID() {
+    
+    $res = $db->query('SELECT LOWER(HEX(RANDOMBLOB(16))) AS uuid');
+    $row = $res->fetch(PDO::FETCH_ASSOC);
+    $uuid = $row['uuid'];
+    $res->closeCursor();
+    return $uuid;
+    
     // uh... UUID generator, anyone?
     $dbType = 'sqlite';
     
     switch ($dbType) {
       case 'sqlite':
-        $res = $db->query('SELECT LOWER(HEX(RANDOMBLOG(16))) AS uuid');
-        $row = $res->fetch(PDO::FETCH_ASSOC);
-        $uuid = $row['uuid'];
-        $res->closeCursor();
-        return $uuid;
+        
       case 'mysql':
         // SELECT UUID()
       default:
@@ -87,25 +90,25 @@ class YeSQL {
    */
   public static function schema() {
     return 
-// FriendFeed's schema
+// Based on FriendFeed's schema, adapted for SQLite3.
+// Note that we rely on the implicit 'rowid' column.
 'CREATE TABLE entities (
-    added_id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    id BINARY(16) NOT NULL,
-    updated TIMESTAMP NOT NULL,
-    body MEDIUMBLOB,
-    UNIQUE KEY (id),
-    KEY (updated)
+    id TEXT NOT NULL,
+    updated NUMERIC CURRENT_DATETIME,
+    body BLOB,
+    UNIQUE (id)
+    -- KEY (updated)
 );
 ' // ENGINE=InnoDB;
 .
 // Very generic index:
-'CREATE TABLE attribute_index(
-  id BINARY(16) NOT NULL,
-  akey VARCHAR(255) NOT NULL,
+'CREATE TABLE attributes (
+  id TEXT NOT NULL,
+  akey TEXT NOT NULL,
   avalue TEXT,
-  ahash CHAR(32),
-  KEY (akey, avalue),
-  KEY (akey, ahash),
-);'
+  ahash TEXT
+  -- KEY (akey, avalue),
+  -- KEY (akey, ahash),
+);';
   }
 }
