@@ -24,7 +24,9 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
   }
   
   public function testConstructor() {
+    $yes = new YeSQL($this->pdo);
     
+    // Uh... what should be tested?
   }
   
   public function testEntitiesSchema() {
