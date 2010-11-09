@@ -8,7 +8,7 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
   public function setUp() {
     $dsn = 'sqlite:./test.sq3';
     $this->pdo = new PDO($dsn);
-    
+    $this->pdo->exec('DROP TABLE entities; DROP TABLE attributes;');
     $this->pdo->exec(YeSQL::schema());
     $err = $this->pdo->errorInfo();
     if ($err[1] > 0) {
@@ -20,7 +20,7 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
   
   public function tearDown() {
     // TODO: Unlink the DB.
-    $this->pdo->exec('DROP TABLE entities; DROP TABLE attributes;');
+    //$this->pdo->exec('DROP TABLE entities; DROP TABLE attributes;');
   }
   
   public function testConstructor() {
@@ -67,16 +67,51 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $this->assertEquals('abcd', $item->ahash);
   }
   
-  public function testSave() {
+  public function testInsert() {
     // Test insert
     $a = array('a' => 'salad', 'b' => 'viking', 'c' => array('hot', 'dog'));
     $y = new YeSQL($this->pdo);
-    $retval = $y->save($a);
+    $retval = $y->insert($a);
     
     $this->assertTrue($retval);
-    $result = $y->find(array('a' => 'salad'));
-    $this->assertTrue($result->size() == 1);
+    
+    $this->assertEquals(32, strlen($a['id']));
+    
+    $uid = $a['id'];
+    
+    $res = $this->pdo->query("SELECT COUNT(*) AS c FROM entities WHERE id = '$uid'");
+    $o = $res->fetchObject();
+    $this->assertEquals(1, $o->c);
+    
+    $res = $this->pdo->query("SELECT COUNT(*) AS c FROM attributes WHERE id = '$uid'");
+    $o = $res->fetchObject();
+    $this->assertEquals(4, $o->c);
+    
     // Test update
+  }
+  
+  public function testUpdate() {
+    $a = array('a' => 'salad', 'b' => 'viking', 'c' => array('hot', 'dog'));
+    $y = new YeSQL($this->pdo);
+    $retval = $y->insert($a);
+    
+    $this->assertTrue($retval);
+    
+    $uid = $a['id'];
+    $this->assertEquals(32, strlen($uid));
+    
+    $a['a'] = 'Alligator';
+    
+    $this->assertTrue($y->update($a));
+    
+    $stmt = $this->pdo->prepare('SELECT avalue FROM attributes WHERE akey = "a" AND id = :id');
+    $stmt->execute(array(':id' => $uid));
+    $o = $stmt->fetchObject();
+    $this->assertEquals('Alligator', $o->avalue);
+  }
+  
+  public function testSave() {
+    
   }
   
   public function testFind() {

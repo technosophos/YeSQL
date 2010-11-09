@@ -24,56 +24,114 @@ class YeSQL {
     $this->db = $handle;
   }
   
+  public function insert(array &$record) {
+    if (isset($record['id'])) {
+      throw new YeSQLException('Object has ID and cannot be inserted.');
+    }
+    
+    $time = $_SERVER['REQUEST_TIME'];
+    $uid = $this->generateID();
+    
+    // Set the ID before we save.
+    $record['id'] = $uid;
+    
+    $insert_entities = $this->db->prepare('INSERT INTO entities 
+      (id, updated, body) 
+      VALUES (:uid, DATETIME("now"), :body)');
+      
+    $insert_attributes = $this->db->prepare('INSERT INTO attributes
+      (id, akey, avalue, ahash)
+      VALUES (:uid, :key, :value, :crc)');
+      
+    if (empty($insert_entities) || empty($insert_attributes)) {
+      throw new YeSQLException('Could not prepare insert statements.');
+    }
+    
+    // Transform attributes into INSERT data.
+    $attributes = $this->prepareIndexes($record, $uid);
+    
+    // Begin transaction
+    $this->db->beginTransaction();
+    
+    // Insert main value
+    if (!$insert_entities->execute(array(':uid' => $uid, ':body' => serialize($record)))) {
+      $this->db->rollbackTransaction();
+      throw new YeSQLException('Failed to store primary object.');
+    };
+    
+    // Insert all referencing index values
+    foreach ($attributes as $stmt_data) {
+      if (!$insert_attributes->execute($stmt_data)) {
+        $this->db->rollbackTransaction();
+        throw new YeSQLException('Failed to store index for ' . $key);
+      }
+    }
+    
+    // End transaction
+    $this->db->commit();
+    return TRUE;
+  }
+  
+  public function update(array &$record) {
+    if (empty($record['id'])) {
+      throw new YeSQLException('No id set; cannot find the record to update.');
+    }
+    
+    $uid = $record['id'];
+    
+    // Delete old attributes.
+    $stmt = $this->db->prepare('DELETE FROM attributes WHERE id = :id');
+    $stmt->execute(array(':id' => $uid));
+    
+    // Update main record.
+    $update_entities = $this->db->prepare('UPDATE entities 
+      SET updated = DATETIME("now"), body = :body
+      WHERE id = :uid');
+    
+    // Insert the attributes
+    $insert_attributes = $this->db->prepare('INSERT INTO attributes
+      (id, akey, avalue, ahash)
+      VALUES (:uid, :key, :value, :crc)');
+      
+    if (empty($update_entities) || empty($insert_attributes)) {
+      throw new YeSQLException('Could not prepare update/insert statements.');
+    }
+    
+    // Transform attributes into INSERT data.
+    $attributes = $this->prepareIndexes($record, $uid);
+    
+    // Begin transaction
+    $this->db->beginTransaction();
+    
+    // Insert main value
+    if (!$update_entities->execute(array(':uid' => $uid, ':body' => serialize($record)))) {
+      $this->db->rollbackTransaction();
+      throw new YeSQLException('Failed to store primary object.');
+    };
+    
+    // Insert all referencing index values
+    foreach ($attributes as $stmt_data) {
+      if (!$insert_attributes->execute($stmt_data)) {
+        $this->db->rollbackTransaction();
+        throw new YeSQLException('Failed to store index for ' . $key);
+      }
+    }
+    
+    // End transaction
+    $this->db->commit();
+    return TRUE;
+    
+  }
+  
   /**
    * Save a record.
    */
-  public function save(array $record) {
+  public function save(array &$record) {
     if (!empty($record['id'])) {
       // We have an existing object
     }
     else {
-      $time = $_SERVER['REQUEST_TIME']
-      
-      $uid = $this->generateID();
-      
-      $insert_entities = $this->db->prepare('INSERT INTO entities 
-        (id, updated, body) 
-        VALUES (:uid, DATETIME("now"), :body)');
-        
-      $insert_attributes = $this->db->prepare('INSERT INTO attributes
-        id, akey, avalue, ahash
-        VALUES (:uid, :key, :value, :crc)');
-      
-      // We need to get an ID.
-      //$this->db->exec();
-      $attributes = $this->prepareIndexes($record);
-      
-      // Begin transaction
-      $this->db->beginTransaction();
-      
-      // Insert main value
-      if (!$insert_entities->execute(array(':uid' => $uid, ':body' => serialize($record)))) {
-        $this->db->rollbackTransaction();
-        throw new YeSQLException('Failed to store primary object.')
-      };
-      
-      // Insert all referencing index values
-      foreach ($attributes as $key => $value) {
-        $params = array(
-          ':uid' => $uid,
-          ':key' => $key,
-          ':value' => $value,
-          ':crc' => crc32($key),
-        );
-        if (!$insert_attributes->execute($params)) {
-          $this->db->rollbackTransaction();
-          throw new YeSQLException('Failed to store index for ' . $key);
-        }
-      }
-      
-      
-      // End transaction
-      $this->db->commitTransaction;
+      $this->insert($record);
     }
 
   }
@@ -86,7 +144,7 @@ class YeSQL {
   }
 
   public function generateID() {
-    $res = $db->query('SELECT LOWER(HEX(RANDOMBLOB(16))) AS uuid');
+    $res = $this->db->query('SELECT LOWER(HEX(RANDOMBLOB(16))) AS uuid');
     $row = $res->fetch(PDO::FETCH_ASSOC);
     $uuid = $row['uuid'];
     $res->closeCursor();
@@ -105,35 +163,77 @@ class YeSQL {
    *   you dump a resource in here.
    * - associative arrays will have recursive keys build. Indexed arrays will not.
    *
+   * This will return an array that looks like this:
+   *
+   * @code
+   * <?php
+   *  array(
+   *    array(
+   *      ':uid' => '1234123412341234', 
+   *      ':key' => 'foo.bar', 
+   *      ':value' => 'I am the value', 
+   *      ':crc' => 01231,
+   *   ),
+   *    array(
+   *      ':uid' => '1234123412341234', 
+   *      ':key' => 'foo.bar', 
+   *      ':value' => 'I am the value', 
+   *      ':crc' => 01231,
+   *   ),
+   * )
+   * ?>
+   * @endcode
+   *
    * @param array $data
    *  An array of primitive data (arrays, scalars).
    * @return array
    *  An associative array of keys and values.
    */
-  protected function prepareIndexes(array $data, $prefix = '', &$buffer = array()) {
+  protected function prepareIndexes(array $data, $uid, $prefix = '', &$buffer = array()) {
+    
     foreach ($data as $k => $v) {
       // Cast objects into arrays. This will not always work... nor should it.
       if (is_object($v)) {
         $v = (array)$v;
       }
       
-      if (is_array($v) && !empty($v) && !isset($v[0])) {
+      // Skip ID attribute. No point in indexing it.
+      if (empty($prefix) && $k == 'id') {
+        continue;
+      }
+      
+      if (is_array($v) && !empty($v)) {
         // Don't index empty arrays.
         if (empty($v)) {
           continue;
         }
         // Indexed arrays are stored as sets of k/v pairs.
-        //elseif(isset($v[0])) {
+        elseif(isset($v[0])) {
         //  throw new Exception('NOT IMPLEMENTED');
-        //}
+          foreach ($v as $subval) {
+            $newkey = $prefix . $k;
+            $buffer[] = array(
+              ':uid' => $uid, 
+              ':key' => $newkey, 
+              ':value' => $subval, 
+              ':crc' => crc32($newkey),
+            );
+          }
+        }
         // Else we store special dot-suffixed keys.
         else {
           // Recurse.
-          $this->prepareIndexes($v, $k . '.', $buffer);
+          $this->prepareIndexes($v, $uid, $k . '.', $buffer);
         }
       }
       else {
-        $buffer[$prefix . $k] = $v;
+        $newkey = $prefix . $k;
+        $buffer[] = array(
+          ':uid' => $uid, 
+          ':key' => $newkey, 
+          ':value' => $v, 
+          ':crc' => crc32($newkey),
+        );
       }
       
     }
