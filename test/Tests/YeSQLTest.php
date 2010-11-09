@@ -91,7 +91,7 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
   }
   
   public function testUpdate() {
-    $a = array('a' => 'salad', 'b' => 'viking', 'c' => array('hot', 'dog'));
+    $a = array('a' => 'salad', 'b' => array('viking' => 1, 'beaver' => 2), 'c' => array('hot', 'dog'));
     $y = new YeSQL($this->pdo);
     $retval = $y->insert($a);
     
@@ -100,14 +100,16 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $uid = $a['id'];
     $this->assertEquals(32, strlen($uid));
     
-    $a['a'] = 'Alligator';
+    $a['b']['beaver'] = 'Alligator';
     
     $this->assertTrue($y->update($a));
     
-    $stmt = $this->pdo->prepare('SELECT avalue FROM attributes WHERE akey = "a" AND id = :id');
+    $stmt = $this->pdo->prepare('SELECT avalue FROM attributes WHERE akey = "b.beaver" AND id = :id');
     $stmt->execute(array(':id' => $uid));
     $o = $stmt->fetchObject();
     $this->assertEquals('Alligator', $o->avalue);
+    
+    
   }
   
   public function testSave() {

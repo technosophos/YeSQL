@@ -129,11 +129,11 @@ class YeSQL {
   public function save(array &$record) {
     if (!empty($record['id'])) {
       // We have an existing object
+      $this->update($record);
     }
     else {
       $this->insert($record);
     }
-
   }
   
   /**
