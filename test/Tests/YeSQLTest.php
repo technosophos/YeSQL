@@ -105,15 +105,38 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $this->assertTrue($y->update($a));
     
     $stmt = $this->pdo->prepare('SELECT avalue FROM attributes WHERE akey = "b.beaver" AND id = :id');
-    $stmt->execute(array(':id' => $uid));
+      $stmt->execute(array(':id' => $uid));
     $o = $stmt->fetchObject();
     $this->assertEquals('Alligator', $o->avalue);
-    
-    
   }
   
   public function testSave() {
+    $obj = array(
+      'kind' => 'Table',
+      'legs' => 4,
+      'materials' => array('top' => 'laminate', 'legs' => 'wood'),
+    );
     
+    $yes = new YeSQL($this->pdo);
+    
+    $this->assertTrue($yes->save($obj));
+    $this->assertEquals(32, strlen($obj['id']));
+    
+    $obj['legs'] = 'four';
+    
+    $id = $obj['id'];
+    
+    $this->assertTrue($yes->save($obj));
+    
+    $stmt = $this->pdo->prepare('SELECT COUNT(*) AS c FROM entities WHERE id = :uid');
+    $stmt->execute(array(':uid' => $id));
+    $ret = $stmt->fetchObject();
+    $this->assertEquals(1, $ret->c);
+    
+    $stmt = $this->pdo->prepare('SELECT COUNT(*) AS c FROM attributes WHERE id = :uid');
+    $stmt->execute(array(':uid' => $id));
+    $ret = $stmt->fetchObject();
+    $this->assertEquals(4, $ret->c);
   }
   
   public function testFind() {
