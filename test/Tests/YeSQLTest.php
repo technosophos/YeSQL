@@ -87,7 +87,8 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     
     $res = $this->pdo->query("SELECT COUNT(*) AS c FROM attributes WHERE id = '$uid'");
     $o = $res->fetchObject();
-    $this->assertEquals(4, $o->c);
+    // 5 attrs because id is an attribute.
+    $this->assertEquals(5, $o->c);
     
     // Test update
   }
@@ -130,19 +131,104 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     
     $this->assertTrue($yes->save($obj));
     
+    // Test insert
     $stmt = $this->pdo->prepare('SELECT COUNT(*) AS c FROM entities WHERE id = :uid');
     $stmt->execute(array(':uid' => $id));
     $ret = $stmt->fetchObject();
     $this->assertEquals(1, $ret->c);
     
+    // Test update
     $stmt = $this->pdo->prepare('SELECT COUNT(*) AS c FROM attributes WHERE id = :uid');
     $stmt->execute(array(':uid' => $id));
     $ret = $stmt->fetchObject();
-    $this->assertEquals(4, $ret->c);
+    $this->assertEquals(5, $ret->c);
+  }
+  /**
+   * @expectedException YeSQLException
+   */
+  public function testInsertFail() {
+    $obj = array(
+      'kind' => 'Table',
+      'legs' => 4,
+      'materials' => array('top' => 'laminate', 'legs' => 'wood'),
+    );
+    $yes = new YeSQL($this->pdo);
+    
+    $this->assertTrue($yes->insert($obj));
+    
+    // This should throw an exception.
+    $yes->insert($obj);
+  }
+  
+  /**
+   * @expectedException YeSQLException
+   */
+  public function testUpdateFailOnMissingId() {
+    $obj = array(
+      'kind' => 'Table',
+      'legs' => 4,
+      'materials' => array('top' => 'laminate', 'legs' => 'wood'),
+    );
+    $yes = new YeSQL($this->pdo);
+    
+    // This should throw an exception.
+    $yes->update($obj);
+  }
+  
+  /**
+   * @expectedException YeSQLException
+   */
+  public function testUpdateFailOnBogusID() {
+    $obj = array(
+      'kind' => 'Table',
+      'legs' => 4,
+      'materials' => array('top' => 'laminate', 'legs' => 'wood'),
+      'id' => 'nonexistent',
+    );
+    $yes = new YeSQL($this->pdo);
+    
+    // This should throw an exception.
+    $yes->update($obj);
+    
+    $this->assertEquals('nonexistent', $obj['id']);
   }
   
   public function testFind() {
+    $obj1 = array(
+      'kind' => 'Dining Table',
+      'legs' => 4,
+      'materials' => array('top' => 'laminate', 'legs' => 'wood'),
+    );
+    $obj2 = array(
+      'kind' => 'Dining Chair',
+      'legs' => 4,
+      'materials' => array('seat' => 'laminate', 'legs' => 'wood'),
+    );
+    $yes = new YeSQL($this->pdo);
     
+    $yes->insert($obj1);
+    $yes->insert($obj2);
+    
+    $table_uid = $obj1['id'];
+    $chair_uid = $obj2['id'];
+    
+    $this->assertTrue(2 <= $yes->find()->count());
+    
+    // Search by ID.
+    $this->assertEquals(1, $yes->find(array('id' => $table_uid))->count());
+    
+    // Search attribute
+    $this->assertEquals(1, $yes->find(array('kind' => 'Dining Chair'))->count());
+    
+    // Search int
+    $this->assertEquals(2, $yes->find(array('legs' => 4))->count());
+    
+    // Search nested attribute
+    $this->assertEquals(2, $yes->find(array('materials.legs' => 'wood'))->count());
+    
+    // Search with multiple attributes
+    $filter = array('kind' => 'Dining Chair', 'legs' => 4);
+    $this->assertEquals(1, $yes->find($filter)->count());
   }
   
 }
