@@ -193,6 +193,48 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $this->assertEquals('nonexistent', $obj['id']);
   }
   
+  public function testDeleteAll() {
+    $obj = array(
+      'kind' => 'Table',
+      'legs' => 4,
+      'materials' => array('top' => 'laminate', 'legs' => 'wood'),
+    );
+    $yes = new YeSQL($this->pdo);
+    
+    $this->assertTrue($yes->insert($obj));
+    
+    $yes->delete();
+    
+    $stmt = $this->pdo->query('SELECT count(*) AS c FROM entities');
+    $o = $stmt->fetchObject();
+    $this->assertEquals(0, $o->c);
+    
+    $stmt = $this->pdo->query('SELECT count(*) AS c FROM attributes');
+    $o = $stmt->fetchObject();
+    $this->assertEquals(0, $o->c);
+  }
+  
+  public function testDelete() {
+    $obj = array(
+      'kind' => 'Table',
+      'legs' => 4,
+      'materials' => array('top' => 'laminate', 'legs' => 'wood'),
+    );
+    $yes = new YeSQL($this->pdo);
+    
+    $this->assertTrue($yes->insert($obj));
+    
+    $yes->delete(array('id' => $obj['id']));
+    
+    $stmt = $this->pdo->query('SELECT count(*) AS c FROM entities WHERE id = "'. $obj['id'] .'"');
+    $o = $stmt->fetchObject();
+    $this->assertEquals(0, $o->c);
+    
+    $stmt = $this->pdo->query('SELECT count(*) AS c FROM attributes WHERE id = "'. $obj['id'] .'"');
+    $o = $stmt->fetchObject();
+    $this->assertEquals(0, $o->c);
+  }
+  
   public function testFind() {
     $obj1 = array(
       'kind' => 'Dining Table',

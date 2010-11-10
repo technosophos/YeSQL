@@ -152,6 +152,13 @@ class YeSQL {
     }
   }
   
+  public function delete($query = NULL) {
+    if (!isset($query)) {
+      $delAttrs = $this->db->exec('DELETE FROM attributes');
+      $delEnt = $this->db->exec('DELETE FROM entities');
+    }
+  }
+  
   /**
    * Find a record.
    */
