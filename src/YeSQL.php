@@ -3,6 +3,8 @@
  * YeSQL NoSQL-like database library.
  */
 
+require_once 'YeSQLCursor.php';
+
 class YeSQL {
   
   const UPDATE_ENT_SQL = '';
@@ -24,6 +26,19 @@ class YeSQL {
     $this->db = $handle;
   }
   
+  /**
+   * Insert a record into the data storage.
+   *
+   * This will index the record and perform any necessary indexing as well.
+   *
+   * @param array &$record
+   *  The record to insert. This is passed by reference, and the attribute 'id' is 
+   *  set for you.
+   * @return boolean
+   *  TRUE if the insert succeeded.
+   * @throws YeSQLException
+   *  thrown if the insertion operation could not complete.
+   */
   public function insert(array &$record) {
     if (isset($record['id'])) {
       throw new YeSQLException('Object has ID and cannot be inserted.');
@@ -55,14 +70,14 @@ class YeSQL {
     
     // Insert main value
     if (!$insert_entities->execute(array(':uid' => $uid, ':body' => serialize($record)))) {
-      $this->db->rollbackTransaction();
+      $this->db->rollBack();
       throw new YeSQLException('Failed to store primary object.');
     };
     
     // Insert all referencing index values
     foreach ($attributes as $stmt_data) {
       if (!$insert_attributes->execute($stmt_data)) {
-        $this->db->rollbackTransaction();
+        $this->db->rollBack();
         throw new YeSQLException('Failed to store index for ' . $key);
       }
     }
@@ -104,15 +119,16 @@ class YeSQL {
     $this->db->beginTransaction();
     
     // Insert main value
-    if (!$update_entities->execute(array(':uid' => $uid, ':body' => serialize($record)))) {
-      $this->db->rollbackTransaction();
+    if (!$update_entities->execute(array(':uid' => $uid, ':body' => serialize($record)))
+        || $update_entities->rowCount() == 0) {
+      $this->db->rollBack();
       throw new YeSQLException('Failed to store primary object.');
     };
     
     // Insert all referencing index values
     foreach ($attributes as $stmt_data) {
       if (!$insert_attributes->execute($stmt_data)) {
-        $this->db->rollbackTransaction();
+        $this->db->rollBack();
         throw new YeSQLException('Failed to store index for ' . $key);
       }
     }
@@ -139,8 +155,8 @@ class YeSQL {
   /**
    * Find a record.
    */
-  public function find(array $query) {
-    
+  public function find($query = array()) {
+    return new YeSQLCursor($this->db, $query);
   }
 
   public function generateID() {
@@ -198,9 +214,10 @@ class YeSQL {
       }
       
       // Skip ID attribute. No point in indexing it.
-      if (empty($prefix) && $k == 'id') {
-        continue;
-      }
+      // The point: CONSISTENCY. Makes queries much easier to write, reduces special case logic.
+      // if (empty($prefix) && $k == 'id') {
+      //         continue;
+      //       }
       
       if (is_array($v) && !empty($v)) {
         // Don't index empty arrays.
@@ -271,4 +288,5 @@ class YeSQL {
 );';
   }
 }
+
 class YeSQLException extends Exception {}
