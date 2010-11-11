@@ -152,11 +152,13 @@ class YeSQL {
     }
   }
   
-  public function delete($query = NULL) {
-    if (!isset($query)) {
-      $delAttrs = $this->db->exec('DELETE FROM attributes');
-      $delEnt = $this->db->exec('DELETE FROM entities');
-    }
+  public function delete($query) {
+    throw new Exception('Not implemented');
+  }
+  
+  public function deleteAll() {
+    $delAttrs = $this->db->exec('DELETE FROM attributes');
+    $delEnt = $this->db->exec('DELETE FROM entities');
   }
   
   /**

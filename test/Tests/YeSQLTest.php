@@ -203,7 +203,7 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     
     $this->assertTrue($yes->insert($obj));
     
-    $yes->delete();
+    $yes->deleteAll();
     
     $stmt = $this->pdo->query('SELECT count(*) AS c FROM entities');
     $o = $stmt->fetchObject();
