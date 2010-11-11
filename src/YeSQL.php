@@ -163,6 +163,9 @@ class YeSQL {
   
   /**
    * Find a record.
+   *
+   * Notes
+   *  If you are searching for items whose keys have dots in them, escape the dot.
    */
   public function find($query = array()) {
     return new YeSQLCursor($this->db, $query);
@@ -217,6 +220,9 @@ class YeSQL {
   protected function prepareIndexes(array $data, $uid, $prefix = '', &$buffer = array()) {
     
     foreach ($data as $k => $v) {
+      
+      $k = str_replace('.', '\.', $k);
+      
       // Cast objects into arrays. This will not always work... nor should it.
       if (is_object($v)) {
         $v = (array)$v;
