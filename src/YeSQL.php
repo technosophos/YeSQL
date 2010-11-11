@@ -226,7 +226,7 @@ class YeSQL {
       //         continue;
       //       }
       
-      if (is_array($v) && !empty($v)) {
+      if (is_array($v)) {
         // Don't index empty arrays.
         if (empty($v)) {
           continue;
