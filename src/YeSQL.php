@@ -288,7 +288,7 @@ class YeSQL {
   id TEXT REFERENCES entities (id),
   akey TEXT NOT NULL,
   avalue TEXT,
-  ahash TEXT
+  ahash NUMERIC
   -- FOREIGN KEY id REFERENCES entities (id)
   -- KEY (akey, avalue),
   -- KEY (akey, ahash),
