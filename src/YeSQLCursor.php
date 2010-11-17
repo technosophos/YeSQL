@@ -76,7 +76,7 @@ class YeSQLCursor {
     }
     
     $baseQuery = 'SELECT entities.body FROM entities 
-      INNER JOIN attributes ON entities.id = attributes.id';
+      INNER JOIN attributes ON entities.row_id = attributes.row_id';
       
     if ($qcounter > 0) {
       throw new YeSQLException('Not implemented.');

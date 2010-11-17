@@ -50,20 +50,20 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
   }
   
   public function testAttributesSchema() {
-    $count = $this->pdo->exec('INSERT INTO attributes (id, akey, avalue, ahash) 
-      VALUES (LOWER(HEX(RANDOMBLOB(16))), "foo", "bar", "abcd")');
+    $count = $this->pdo->exec('INSERT INTO attributes (row_id, akey, avalue, ahash) 
+      VALUES (1, "foo", "bar", "abcd")');
       
     if ($count == 0) {
       throw new Exception('Insert Failed: ' . print_r($this->pdo->errorInfo(), TRUE));
     }
     
-    $res = $this->pdo->query('SELECT id, akey, avalue, ahash FROM attributes');
+    $res = $this->pdo->query('SELECT row_id, akey, avalue, ahash FROM attributes');
     if ($res === FALSE) {
       throw new Exception('Query failed:' . print_r($this->pdo->errorInfo(), TRUE));
     }
     
     $item = $res->fetchObject();
-    $this->assertEquals(32, strlen($item->id));
+    $this->assertEquals(1, $item->row_id);
     $this->assertEquals('foo', $item->akey);
     $this->assertEquals('bar', $item->avalue);
     $this->assertEquals('abcd', $item->ahash);
@@ -85,7 +85,10 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $o = $res->fetchObject();
     $this->assertEquals(1, $o->c);
     
-    $res = $this->pdo->query("SELECT COUNT(*) AS c FROM attributes WHERE id = '$uid'");
+    $res = $this->pdo->query("SELECT COUNT(attributes.row_id) AS c FROM attributes 
+      INNER JOIN entities ON attributes.row_id = entities.row_id  
+      WHERE entities.id = '$uid'");
+      
     $o = $res->fetchObject();
     // 5 attrs because id is an attribute.
     $this->assertEquals(5, $o->c);
@@ -107,7 +110,9 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     
     $this->assertTrue($y->update($a));
     
-    $stmt = $this->pdo->prepare('SELECT avalue FROM attributes WHERE akey = "b.beaver" AND id = :id');
+    $stmt = $this->pdo->prepare('SELECT avalue FROM attributes 
+      INNER JOIN entities ON attributes.row_id = entities.row_id
+      WHERE attributes.akey = "b.beaver" AND entities.row_id = :id');
       $stmt->execute(array(':id' => $uid));
     $o = $stmt->fetchObject();
     $this->assertEquals('Alligator', $o->avalue);
@@ -138,7 +143,9 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $this->assertEquals(1, $ret->c);
     
     // Test update
-    $stmt = $this->pdo->prepare('SELECT COUNT(*) AS c FROM attributes WHERE id = :uid');
+    $stmt = $this->pdo->prepare('SELECT COUNT(*) AS c FROM attributes 
+      INNER JOIN entities ON attributes.row_id = entities.row_id
+      WHERE entities.id = :uid');
     $stmt->execute(array(':uid' => $id));
     $ret = $stmt->fetchObject();
     $this->assertEquals(5, $ret->c);
@@ -230,7 +237,9 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     $o = $stmt->fetchObject();
     $this->assertEquals(0, $o->c);
     
-    $stmt = $this->pdo->query('SELECT count(*) AS c FROM attributes WHERE id = "'. $obj['id'] .'"');
+    $stmt = $this->pdo->query('SELECT count(*) AS c FROM attributes 
+      INNER JOIN entities ON entities.row_id = attributes.row_id
+      WHERE entities.id = "'. $obj['id'] .'"');
     $o = $stmt->fetchObject();
     $this->assertEquals(0, $o->c);
   }

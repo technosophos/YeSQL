@@ -97,7 +97,8 @@ class YeSQL {
     $uid = $record['id'];
     
     // Delete old attributes.
-    $stmt = $this->db->prepare('DELETE FROM attributes WHERE id = :id');
+    $stmt = $this->db->prepare('DELETE FROM attributes 
+      WHERE row_id = (SELECT row_id FROM entities WHERE entities.id = :id)');
     $stmt->execute(array(':id' => $uid));
     
     // Update main record.
@@ -107,15 +108,12 @@ class YeSQL {
     
     // Insert the attributes
     $insert_attributes = $this->db->prepare('INSERT INTO attributes
-      (id, akey, avalue, ahash)
+      (row_id, akey, avalue, ahash)
       VALUES (:uid, :key, :value, :crc)');
       
     if (empty($update_entities) || empty($insert_attributes)) {
       throw new YeSQLException('Could not prepare update/insert statements.');
     }
-    
-    // Transform attributes into INSERT data.
-    $attributes = $this->prepareIndexes($record, $uid);
     
     // Begin transaction
     $this->db->beginTransaction();
@@ -126,6 +124,10 @@ class YeSQL {
       $this->db->rollBack();
       throw new YeSQLException('Failed to store primary object.');
     };
+    
+    $rid = $this->db->lastInsertId();
+    // Transform attributes into INSERT data.
+    $attributes = $this->prepareIndexes($record, $rid);
     
     // Insert all referencing index values
     foreach ($attributes as $stmt_data) {
