@@ -56,7 +56,7 @@ class YeSQL {
       
     $insert_attributes = $this->db->prepare('INSERT INTO attributes
       (row_id, akey, avalue, ahash)
-      VALUES (:uid, :key, :value, :crc)');
+      VALUES (:id, :key, :value, :crc)');
       
     if (empty($insert_entities) || empty($insert_attributes)) {
       throw new YeSQLException('Could not prepare insert statements.');
@@ -129,7 +129,7 @@ class YeSQL {
     // Insert the attributes
     $insert_attributes = $this->db->prepare('INSERT INTO attributes
       (row_id, akey, avalue, ahash)
-      VALUES (:uid, :key, :value, :crc)');
+      VALUES (:id, :key, :value, :crc)');
       
     if (empty($update_entities) || empty($insert_attributes)) {
       throw new YeSQLException('Could not prepare update/insert statements.');
@@ -269,7 +269,7 @@ class YeSQL {
           foreach ($v as $subval) {
             $newkey = $prefix . $k;
             $buffer[] = array(
-              ':uid' => $uid, 
+              ':id' => $uid, 
               ':key' => $newkey, 
               ':value' => $subval, 
               ':crc' => crc32($newkey),
@@ -285,7 +285,7 @@ class YeSQL {
       else {
         $newkey = $prefix . $k;
         $buffer[] = array(
-          ':uid' => $uid, 
+          ':id' => $uid, 
           ':key' => $newkey, 
           ':value' => $v, 
           ':crc' => crc32($newkey),
