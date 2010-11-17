@@ -318,7 +318,7 @@ class YeSQL {
 .
 // Very generic index:
 'CREATE TABLE attributes (
-  row_id INTEGER REFERENCES entities (row_id),
+  row_id INTEGER REFERENCES entities (row_id) ON DELETE CASCADE ON UPDATE CASCADE,
   akey TEXT NOT NULL,
   avalue TEXT,
   ahash NUMERIC
