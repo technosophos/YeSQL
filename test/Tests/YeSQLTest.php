@@ -37,16 +37,16 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
       throw new Exception('Insert Failed: ' . print_r($this->pdo->errorInfo(), TRUE));
     }
     
-    $res = $this->pdo->query('SELECT id, body, updated, rowid FROM entities');
+    $res = $this->pdo->query('SELECT id, body, updated, row_id FROM entities');
     
     if ($res === FALSE) {
       throw new Exception('Query failed:' . print_r($this->pdo->errorInfo(), TRUE));
     }
     
     $item = $res->fetchObject();
-    $this->assertEquals('abcd', $item->body);
-    $this->assertEquals(32, strlen($item->id));
-    $this->assertEquals(1, strlen($item->rowid));
+    $this->assertEquals('abcd', $item->body, 'Check body for matches.');
+    $this->assertEquals(32, strlen($item->id), 'Check length of key');
+    $this->assertEquals(1, strlen($item->row_id), 'Check the key length of the row ID');
   }
   
   public function testAttributesSchema() {
@@ -110,10 +110,13 @@ class YeSQLTest extends PHPUnit_Framework_TestCase {
     
     $this->assertTrue($y->update($a));
     
-    $stmt = $this->pdo->prepare('SELECT avalue FROM attributes 
+    $stmt = $this->pdo->prepare('SELECT avalue 
+      FROM attributes 
       INNER JOIN entities ON attributes.row_id = entities.row_id
-      WHERE attributes.akey = "b.beaver" AND entities.row_id = :id');
-      $stmt->execute(array(':id' => $uid));
+      WHERE attributes.akey = "b.beaver" 
+        AND entities.id = :id');
+        
+    $stmt->execute(array(':id' => $uid));
     $o = $stmt->fetchObject();
     $this->assertEquals('Alligator', $o->avalue);
   }

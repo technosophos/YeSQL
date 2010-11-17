@@ -89,17 +89,37 @@ class YeSQL {
     return TRUE;
   }
   
+  /**
+   * Internal function for mapping UUID to the internal int flag.
+   */
+  protected function getInternalId($id) {
+
+    $stmt = $this->db->prepare('SELECT row_id FROM entities WHERE id = :id');
+    $stmt->execute(array(':id' => $id));
+   
+    // No such ID.
+    if (empty($stmt)) return;
+    
+    $o = $stmt->fetchObject();
+    return !empty($o) ? $o->row_id : NULL;
+  }
+  
   public function update(array &$record) {
     if (empty($record['id'])) {
       throw new YeSQLException('No id set; cannot find the record to update.');
     }
     
     $uid = $record['id'];
+    $rid = $this->getInternalId($uid);
+    
+    if (empty($rid)) {
+      throw new YeSQLException('No matching ID was found; cannot update record.');
+    }
     
     // Delete old attributes.
     $stmt = $this->db->prepare('DELETE FROM attributes 
-      WHERE row_id = (SELECT row_id FROM entities WHERE entities.id = :id)');
-    $stmt->execute(array(':id' => $uid));
+      WHERE row_id = :id');
+    $stmt->execute(array(':id' => $rid));
     
     // Update main record.
     $update_entities = $this->db->prepare('UPDATE entities 
@@ -125,7 +145,7 @@ class YeSQL {
       throw new YeSQLException('Failed to store primary object.');
     };
     
-    $rid = $this->db->lastInsertId();
+    //$rid = $this->db->lastInsertId();
     // Transform attributes into INSERT data.
     $attributes = $this->prepareIndexes($record, $rid);
     
