@@ -55,15 +55,12 @@ class YeSQL {
       VALUES (:uid, DATETIME("now"), :body)');
       
     $insert_attributes = $this->db->prepare('INSERT INTO attributes
-      (id, akey, avalue, ahash)
+      (row_id, akey, avalue, ahash)
       VALUES (:uid, :key, :value, :crc)');
       
     if (empty($insert_entities) || empty($insert_attributes)) {
       throw new YeSQLException('Could not prepare insert statements.');
     }
-    
-    // Transform attributes into INSERT data.
-    $attributes = $this->prepareIndexes($record, $uid);
     
     // Begin transaction
     $this->db->beginTransaction();
@@ -73,6 +70,11 @@ class YeSQL {
       $this->db->rollBack();
       throw new YeSQLException('Failed to store primary object.');
     };
+    
+    $rid = $this->db->lastInsertId();
+    
+    // Transform attributes into INSERT data.
+    $attributes = $this->prepareIndexes($record, $rid);
     
     // Insert all referencing index values
     foreach ($attributes as $stmt_data) {
@@ -281,8 +283,9 @@ class YeSQL {
   public static function schema() {
     return 
 // Based on FriendFeed's schema, adapted for SQLite3.
-// Note that we rely on the implicit 'rowid' column.
+// Note that we alias row_id on the implicit 'rowid' column.
 'CREATE TABLE entities (
+    row_id INTEGER PRIMARY KEY ASC,
     id TEXT NOT NULL,
     updated NUMERIC CURRENT_DATETIME,
     body BLOB,
@@ -293,10 +296,11 @@ class YeSQL {
 .
 // Very generic index:
 'CREATE TABLE attributes (
-  id TEXT REFERENCES entities (id),
+  row_id INTEGER REFERENCES entities (row_id),
   akey TEXT NOT NULL,
   avalue TEXT,
   ahash NUMERIC
+  -- id TEXT REFERENCES entities (id),
   -- FOREIGN KEY id REFERENCES entities (id)
   -- KEY (akey, avalue),
   -- KEY (akey, ahash),
